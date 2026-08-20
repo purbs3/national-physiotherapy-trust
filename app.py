@@ -22,6 +22,24 @@ st.set_page_config(
 )
 
 # ====================================================================
+# 🖼️ कस्टम लोगो लोडर (NPRC GLOBAL LOGO)
+# ====================================================================
+LOGO_PATH = "nprc_logo.png"  # अपने लोगो का नाम यही रखें और फोल्डर में डाल दें
+
+def get_logo_base64():
+    if os.path.exists(LOGO_PATH):
+        with open(LOGO_PATH, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    return ""
+
+logo_b64 = get_logo_base64()
+
+if logo_b64:
+    logo_html = f'<img src="data:image/png;base64,{logo_b64}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">'
+else:
+    logo_html = f'<div style="color:#0B2A4A; font-weight:bold; font-size:12px;">LOGO<br>HERE</div>'
+
+# ====================================================================
 # 1. 🔐 SECURE CREDENTIAL MANAGEMENT (SHA-256 HASHED)
 # ====================================================================
 DEFAULT_USER = "admin"
@@ -60,7 +78,7 @@ if 'authenticated' not in st.session_state:
     st.session_state.user = None
 
 # ====================================================================
-# 2. 🎨 डार्क/लाइट थीम + CSS
+# 2. 🎨 डार्क/लाइट थीम + CSS (Footer Removed)
 # ====================================================================
 if 'dark_mode' not in st.session_state:
     st.session_state.dark_mode = False
@@ -110,15 +128,6 @@ st.markdown(f"""
     }}
     .stat-box h2 {{ color: {text_color}; font-size: 2.2rem; font-weight: 800; margin: 0; }}
     .stat-box p {{ color: #4B5563; font-weight: 500; margin: 0; }}
-    .footer {{
-        background: #0B2A4A;
-        color: #B0C4DE;
-        padding: 1.2rem 2rem;
-        border-radius: 20px 20px 0 0;
-        margin-top: 3rem;
-        text-align: center;
-        border-top: 4px solid #D4AF37;
-    }}
     .stTextInput input, .stNumberInput input, .stSelectbox div {{
         background: {bg_card} !important;
         color: {text_color} !important;
@@ -136,11 +145,10 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ====================================================================
-# 🎯 SVG आइकॉन लाइब्रेरी
+# 🎯 SVG आइकॉन लाइब्रेरी (फंक्शनल टैब्स के लिए)
 # ====================================================================
 def svg_icon(name, size=24, color="#FFFFFF"):
     icons = {
-        "gov": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
         "dashboard": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
         "donor": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M12 2v4M12 22v-4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M22 12h-4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="3"/></svg>',
         "patient": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M12 11v4M10 13h4"/></svg>',
@@ -148,7 +156,6 @@ def svg_icon(name, size=24, color="#FFFFFF"):
         "bill": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
         "settings": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>',
         "report": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
-        "chart": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>'
     }
     return icons.get(name, "")
 
@@ -191,33 +198,41 @@ def log_action(action):
     })
     save_data('logs.csv', st.session_state.logs)
 
-# 80G रसीद जनरेटर
+# 80G रसीद जनरेटर (PDF में लोगो सपोर्ट के साथ)
 def generate_80g_receipt(donor):
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
     
     c.setFillColorRGB(0.043, 0.165, 0.294)
-    c.rect(0, height-90, width, 90, fill=1)
+    c.rect(0, height-100, width, 100, fill=1)
+    
+    # अगर लोगो है तो PDF में भी लगाएं
+    if os.path.exists(LOGO_PATH):
+        try:
+            c.drawImage(LOGO_PATH, 30, height-90, width=70, height=70, preserveAspectRatio=True, mask='auto')
+        except:
+            pass
+            
     c.setFillColorRGB(0.831, 0.686, 0.215)
     c.setFont("Helvetica-Bold", 18)
-    c.drawString(40, height-40, "NPRC GLOBAL TRUST")
+    c.drawString(120, height-40, "NPRC GLOBAL TRUST")
     c.setFillColorRGB(1, 1, 1)
     c.setFont("Helvetica", 9)
-    c.drawString(40, height-58, "National Physiotherapy & Rehabilitation Council | Regd. Indian Trusts Act")
-    c.drawString(40, height-72, "80G Order No: ITBA/EXM/80G/2024-25/101 | PAN: AABTN1234C")
+    c.drawString(120, height-58, "National Physiotherapy & Rehabilitation Council | Regd. Indian Trusts Act")
+    c.drawString(120, height-72, "80G Order No: ITBA/EXM/80G/2024-25/101 | PAN: AABTN1234C")
     
     c.setFillColorRGB(0.043, 0.165, 0.294)
     c.setFont("Helvetica-Bold", 14)
-    c.drawCentredString(width/2, height-120, "DONATION RECEIPT (UNDER SECTION 80G OF I.T. ACT)")
+    c.drawCentredString(width/2, height-130, "DONATION RECEIPT (UNDER SECTION 80G OF I.T. ACT)")
     
     c.setStrokeColorRGB(0.831, 0.686, 0.215)
     c.setLineWidth(1)
-    c.line(40, height-130, width-40, height-130)
+    c.line(40, height-140, width-40, height-140)
     
     c.setFillColorRGB(0, 0, 0)
     c.setFont("Helvetica-Bold", 10)
-    y = height - 160
+    y = height - 170
     c.drawString(40, y, f"Receipt No: {donor.get('receipt_no', 'NPRC-REC')}")
     c.drawString(width-200, y, f"Date: {donor.get('date', datetime.now().strftime('%Y-%m-%d'))}")
     
@@ -266,13 +281,13 @@ def generate_80g_receipt(donor):
     return buffer.getvalue()
 
 # ====================================================================
-# 🏛️ हेडर
+# 🏛️ हेडर (WITH LOGO)
 # ====================================================================
 st.markdown(f"""
 <div class="main-header">
     <div style="display:flex; align-items:center; gap:20px;">
-        <div style="background:#D4AF37; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
-            {svg_icon('gov', 32, '#0B2A4A')}
+        <div style="background:white; width:65px; height:65px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); overflow:hidden;">
+            {logo_html}
         </div>
         <div>
             <div style="display:flex; align-items:center; gap:12px;">
@@ -286,19 +301,19 @@ st.markdown(f"""
     <div style="text-align:right; color:#D4AF37;">
         <small>80G Exemption</small>
         <div><strong>PAN: AABTN1234C</strong></div>
-        <small style="color:#B0C4DE; font-size:0.7rem;">Production v4.4</small>
+        <small style="color:#B0C4DE; font-size:0.7rem;">Production v4.5</small>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 # ====================================================================
-# 📌 साइडबार + सुरक्षित लॉगिन
+# 📌 साइडबार + सुरक्षित लॉगिन (WITH LOGO)
 # ====================================================================
 with st.sidebar:
     st.markdown(f"""
     <div style="text-align:center; padding:15px 0; border-bottom:2px solid #D4AF37;">
-        <div style="background:#D4AF37; width:60px; height:60px; border-radius:50%; margin:0 auto; display:flex; align-items:center; justify-content:center;">
-            {svg_icon('gov', 35, '#0B2A4A')}
+        <div style="background:white; width:70px; height:70px; border-radius:50%; margin:0 auto; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); overflow:hidden;">
+            {logo_html}
         </div>
         <h4 style="color:#D4AF37; margin-top:10px;">NPRC Portal</h4>
     </div>
@@ -333,7 +348,7 @@ with st.sidebar:
             ["Dashboard", "Donors", "Patients & Rehab", "Camps", "Expenses", "Bills", "Reports (FY Filter)", "Settings"]
         )
         st.markdown("---")
-        st.caption("NPRC v4.4 | Secure Enterprise")
+        st.caption("NPRC v4.5 | Secure Enterprise")
 
 # ====================================================================
 # 🧭 पेज हैंडलिंग
@@ -414,10 +429,10 @@ elif page == "Donors":
                     key=f"dl_rec_{donor['id']}"
                 )
 
-# ========== 3. PATIENTS & CLINICAL REHAB (VAS / ROM OUTCOME TRACKER) ==========
+# ========== 3. PATIENTS (WITH REHAB ASSESSMENT) ==========
 elif page == "Patients & Rehab":
-    st.markdown(f"<h2>{svg_icon('patient', 30, '#0B2A4A')} Patient Registry & Clinical Rehab Outcome Tracker</h2>", unsafe_allow_html=True)
-    tab1, tab2, tab3 = st.tabs(["📝 Register Patient", "📊 Patient Rehab Trajectory (VAS / ROM)", "📋 Roster & Reminders"])
+    st.markdown(f"<h2>{svg_icon('patient', 30, '#0B2A4A')} Patient Registry & Clinical Rehab Hub</h2>", unsafe_allow_html=True)
+    tab1, tab2, tab3 = st.tabs(["📝 Register Patient", "📊 Patient Rehab Trajectory", "📋 Roster & Reminders"])
     
     with tab1:
         with st.form("add_patient"):
@@ -445,11 +460,10 @@ elif page == "Patients & Rehab":
                     st.session_state.patients.append({
                         'id': p_id, 'name': name, 'age': age,
                         'condition': cond, 'village': village, 'status': status,
-                        'contact': contact,
+                        'contact': contact, 'pain_vas': pain_vas, 'mobility': "Recorded",
                         'last_visit': str(last_visit), 'next_followup': str(next_followup),
                         'reg_date': datetime.now().strftime("%Y-%m-%d")
                     })
-                    # Save initial rehab score log
                     st.session_state.rehab_logs.append({
                         'patient_id': p_id, 'name': name,
                         'session_date': str(last_visit),
@@ -488,7 +502,6 @@ elif page == "Patients & Rehab":
                             st.rerun()
             
             with col_add_s2:
-                # Plot recovery trajectory
                 logs_df = pd.DataFrame(st.session_state.rehab_logs)
                 if not logs_df.empty:
                     p_logs = logs_df[logs_df['patient_id'] == chosen_patient['id']].sort_values(by='session_date')
@@ -510,7 +523,7 @@ elif page == "Patients & Rehab":
             st.markdown("#### Patient Registry & Follow-up Actions")
             for p in st.session_state.patients:
                 cp1, cp2, cp3, cp4 = st.columns([3, 2, 2, 3])
-                with cp1: st.write(f"**{p['name']}** ({p.get('condition')})")
+                with cp1: st.write(f"**{p['name']}** ({p.get('condition')}) | Pain: `{p.get('pain_vas', 'N/A')}/10`")
                 with cp2: st.write(f"Status: `{p.get('status')}`")
                 with cp3: st.write(f"Follow-up: `{p.get('next_followup', 'N/A')}`")
                 with cp4:
@@ -518,7 +531,7 @@ elif page == "Patients & Rehab":
                     encoded_msg = urllib.parse.quote(msg)
                     phone_num = str(p.get('contact', '')).replace('+', '').replace(' ', '')
                     wa_url = f"https://wa.me/{phone_num}?text={encoded_msg}" if phone_num else f"https://wa.me/?text={encoded_msg}"
-                    st.link_button("📲 WhatsApp Reminder", wa_url, key=f"wa_{p['id']}")
+                    st.link_button(" WhatsApp Reminder", wa_url, key=f"wa_{p['id']}")
 
 # ========== 4. CAMPS ==========
 elif page == "Camps":
@@ -588,7 +601,7 @@ elif page == "Bills":
                 log_action(f"Rejected Bill #{bill['id']}")
                 st.rerun()
 
-# ========== 7. REPORTS (AUTO-FINANCIAL YEAR 1-APRIL TO 31-MARCH FILTERING) ==========
+# ========== 7. REPORTS (AUTO-FINANCIAL YEAR FILTERING) ==========
 elif page == "Reports (FY Filter)":
     st.markdown(f"<h2>{svg_icon('report', 30, '#0B2A4A')} Statutory Financial Year (FY) Audits</h2>", unsafe_allow_html=True)
     
@@ -597,7 +610,7 @@ elif page == "Reports (FY Filter)":
     fy_start = datetime(start_year, 4, 1).date()
     fy_end = datetime(start_year + 1, 3, 31).date()
     
-    st.caption(f"📅 Active Accounting Period: **{fy_start.strftime('%d %b %Y')}** to **{fy_end.strftime('%d %b %Y')}**")
+    st.caption(f"Active Accounting Period: **{fy_start.strftime('%d %b %Y')}** to **{fy_end.strftime('%d %b %Y')}**")
     
     def in_fy(date_str):
         try:
@@ -639,16 +652,23 @@ elif page == "Reports (FY Filter)":
             width, height = A4
             
             c.setFillColorRGB(0.043, 0.165, 0.294)
-            c.rect(0, height-80, width, 80, fill=1)
+            c.rect(0, height-100, width, 100, fill=1)
+            
+            # Logo in Audit Report
+            if os.path.exists(LOGO_PATH):
+                try:
+                    c.drawImage(LOGO_PATH, 30, height-90, width=70, height=70, preserveAspectRatio=True, mask='auto')
+                except: pass
+                
             c.setFillColorRGB(0.831, 0.686, 0.215)
             c.setFont("Helvetica-Bold", 16)
-            c.drawString(40, height-45, "NPRC GLOBAL TRUST")
+            c.drawString(120, height-45, "NPRC GLOBAL TRUST")
             c.setFillColorRGB(1,1,1)
             c.setFont("Helvetica", 10)
-            c.drawString(40, height-65, f"Annual Statutory Audit & Clinical Impact - FY {fy_selected} (1 Apr {start_year} - 31 Mar {start_year+1})")
+            c.drawString(120, height-65, f"Annual Statutory Audit & Clinical Impact - FY {fy_selected}")
             
             c.setFillColorRGB(0,0,0)
-            y = height - 120
+            y = height - 140
             c.setFont("Helvetica-Bold", 12)
             c.drawString(40, y, "1. Philanthropic Inflow (80G Eligible)")
             y -= 20
@@ -695,7 +715,7 @@ elif page == "Settings":
     col_s1, col_s2 = st.columns(2)
     
     with col_s1:
-        st.subheader("🔑 Update Admin Credentials (SHA-256)")
+        st.subheader(" Update Admin Credentials (SHA-256)")
         with st.form("update_creds"):
             new_u = st.text_input("New Admin Username", value=st.session_state.user)
             new_p = st.text_input("New Password", type="password")
@@ -716,7 +736,7 @@ elif page == "Settings":
             st.rerun()
 
     with col_s2:
-        st.subheader("📦 Data Vault Backup & Disaster Recovery")
+        st.subheader("Data Vault Backup & Disaster Recovery")
         if st.button("Create Full Encrypted Archive (ZIP)", use_container_width=True):
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, 'w') as zf:
@@ -736,20 +756,6 @@ elif page == "Settings":
             st.success("Database Restored Successfully! Reloading system...")
             log_action("Restored from Archive")
             st.rerun()
-
-# ====================================================================
-# 📌 फुटर
-# ====================================================================
-st.markdown(f"""
-<div class="footer">
-    <div style="display:flex; justify-content:space-between; flex-wrap:wrap;">
-        <div>NPRC Global Trust | Regd. under Indian Trusts Act</div>
-        <div>80G Registration: AABTN1234C | 12A Compliant</div>
-        <div>Offline Enterprise Portal v4.4</div>
-    </div>
-    <div style="margin-top:8px; opacity:0.6; font-size:0.8rem;">All records stored locally with audit logging. SHA-256 Secured.</div>
-</div>
-""", unsafe_allow_html=True)
 
 # पहली बार CSV / JSON इनिशियलाइज़ेशन
 if __name__ == "__main__":
