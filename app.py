@@ -17,7 +17,47 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ---------- CSS थीम: National Trust ----------
+# ====================================================================
+# 🔐 AUTHENTICATION (LOGIN) SYSTEM - सबसे पहले यह चलेगा
+# ====================================================================
+
+# डिफॉल्ट क्रेडेंशियल (अगर Streamlit Secrets में न डाला हो तो)
+# लेकिन सबसे अच्छा है कि आप Streamlit Cloud पर Secrets डालें।
+def get_credentials():
+    """Secrets से या Hardcoded से Credentials लोड करें"""
+    try:
+        # प्रोडक्शन में: Streamlit Cloud -> Settings -> Secrets में यह डालें
+        username = st.secrets["auth"]["username"]
+        password = st.secrets["auth"]["password"]
+    except:
+        # डेवलपमेंट/फॉलबैक के लिए (किसी को मत बताना)
+        username = "trustee"
+        password = "NPRC@2026"
+    return username, password
+
+def login(username, password):
+    """लॉगिन चेक करें"""
+    correct_username, correct_password = get_credentials()
+    if username == correct_username and password == correct_password:
+        st.session_state.authenticated = True
+        st.session_state.user = username
+        return True
+    return False
+
+def logout():
+    """लॉगआउट करें"""
+    st.session_state.authenticated = False
+    st.session_state.user = None
+    st.rerun()
+
+# सत्र (Session) को इनिशियलाइज़ करें
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+    st.session_state.user = None
+
+# ====================================================================
+# CSS थीम (पहले जैसा ही)
+# ====================================================================
 st.markdown("""
 <style>
     .stApp { background-color: #F8F9FA; }
@@ -64,16 +104,25 @@ st.markdown("""
         background-color: #0B2A4A !important;
         color: white !important;
     }
-    section[data-testid="stSidebar"] *:not(button) { color: white !important; }
+    section[data-testid="stSidebar"] *:not(button):not(a) { color: white !important; }
     .dataframe th {
         background-color: #0B2A4A !important;
         color: white !important;
         font-weight: 600 !important;
     }
+    /* Login Box */
+    .login-box {
+        background: #1A3A5C;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid #D4AF37;
+        margin-top: 20px;
+    }
+    .login-box input { color: black !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# ---------- SVG आइकॉन ----------
+# ---------- SVG आइकॉन (हटाया नहीं) ----------
 def svg_icon(name, size=28, color="#FFFFFF"):
     icons = {
         "trust": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/><path d="M12 7v10"/></svg>',
@@ -81,10 +130,11 @@ def svg_icon(name, size=28, color="#FFFFFF"):
         "bill": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
         "receipt": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M4 4h16v16H4z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>',
         "heart": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+        "lock": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
     }
     return icons.get(name, "")
 
-# ---------- सत्र अवस्था ----------
+# ---------- सत्र अवस्था (डेटा) ----------
 if 'donors' not in st.session_state:
     try:
         df = pd.read_csv('donors.csv')
@@ -109,7 +159,9 @@ def save_donors():
 def save_bills():
     pd.DataFrame(st.session_state.bills).to_csv('bills.csv', index=False)
 
-# ---------- हेडर ----------
+# ====================================================================
+# 🏛️ हेडर (सबको दिखेगा)
+# ====================================================================
 st.markdown(f"""
 <div class="main-header">
     <div style="display: flex; align-items: center; gap: 25px; flex-wrap: wrap;">
@@ -132,31 +184,78 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ---------- साइडबार ----------
+# ====================================================================
+# 📌 साइडबार: Login Form + Navigation (सुरक्षा यहाँ लागू होगी)
+# ====================================================================
 with st.sidebar:
     st.markdown(f"""
     <div style="text-align: center; padding: 20px 0; border-bottom: 2px solid #D4AF37;">
         <div style="background: #D4AF37; width: 70px; height: 70px; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
             {svg_icon("trust", 40, "#0B2A4A")}
         </div>
-        <h4 style="color: #D4AF37; margin-top: 10px;">Trustees Panel</h4>
-        <p style="color: #B0C4DE; font-size: 0.8rem;">Maa & Papa (Admin)</p>
+        <h4 style="color: #D4AF37; margin-top: 10px;">NPRC Trust Portal</h4>
     </div>
     """, unsafe_allow_html=True)
     st.markdown("---")
+
+    # ---------- लॉगिन फॉर्म (अगर Authenticated नहीं हैं तो) ----------
+    if not st.session_state.authenticated:
+        st.markdown(f"""
+        <div style="background:#1A3A5C; padding:15px; border-radius:10px; border:1px solid #D4AF37; margin-bottom:15px;">
+            <p style="color:#D4AF37; font-weight:bold; text-align:center;">🔐 Trustee Login</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        with st.form("login_form", clear_on_submit=True):
+            username_input = st.text_input("Username", placeholder="Enter Username")
+            password_input = st.text_input("Password", type="password", placeholder="Enter Password")
+            login_btn = st.form_submit_button("🔓 Login")
+            
+            if login_btn:
+                if login(username_input, password_input):
+                    st.success("✅ Login Successful! Welcome Trustee.")
+                    st.rerun()
+                else:
+                    st.error("❌ Invalid Username or Password. Please try again.")
+        
+        st.markdown("---")
+        # Unauthenticated user के लिए सिर्फ Home दिखेगा
+        page = "🏠 Home (Public)"
+        
+    else:
+        # ---------- अगर Logged In हैं तो यह दिखेगा ----------
+        st.markdown(f"""
+        <div style="background:#1A3A5C; padding:10px; border-radius:8px; border-left:4px solid #28A745; margin-bottom:15px;">
+            <p style="margin:0; color:#28A745;">✅ Logged in as</p>
+            <p style="margin:0; font-weight:bold; color:white;">{st.session_state.user}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("🚪 Logout"):
+            logout()
+        
+        st.markdown("---")
+        # पूरा नेविगेशन (सभी एडमिन पेज)
+        page = st.radio(
+            label="📋 Navigation",
+            options=["🏠 Home (Public)", "📒 Donor Ledger", "🧾 Generate Receipt", "📑 Vendor Bills"],
+            index=0,
+            key="nav_nprc_secure"
+        )
     
-    page = st.radio(
-        label="📋 Navigation",
-        options=["🏠 Home (Public)", "📒 Donor Ledger", "🧾 Generate Receipt", "📑 Vendor Bills"],
-        index=0,
-        key="nav_nprc"
-    )
     st.markdown("---")
-    st.caption("NPRC Global v1.0.0")
+    st.caption("NPRC Global v2.0 (Secured)")
 
 # ====================================================================
-# पेज 1: होम
+# 🧭 पेज हैंडलिंग (यहाँ तय करें कि कौन सा पेज दिखे)
 # ====================================================================
+
+# अगर लॉगिन नहीं है और कोई Admin पेज खोलने की कोशिश कर रहा है, तो Home पर रीडायरेक्ट करें
+if not st.session_state.authenticated and "Home" not in page:
+    st.warning("⚠️ You are not logged in. Please login from the sidebar to access Admin features.")
+    st.stop()  # यहाँ कोड रुक जाएगा और आगे नहीं बढ़ेगा
+
+# ---------- पेज 1: होम (सार्वजनिक - बिना लॉगिन के भी दिखे) ----------
 if "Home" in page:
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -188,6 +287,7 @@ if "Home" in page:
                 <ul><li><strong>Swavalamban Camps:</strong> Monthly rural outreach camps in Bihar, UP, and Jharkhand.</li>
                 <li><strong>Scholarship for Therapists:</strong> Free PG certifications for rural physiotherapists.</li>
                 <li><strong>AI Health Monitoring:</strong> In collaboration with Urban Rehab for tech-driven care.</li></ul>
+                <p style="color: #6C757D; font-size: 0.9rem; margin-top: 10px;">🔒 <em>Admin features are locked. Please login from the sidebar.</em></p>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -205,9 +305,7 @@ if "Home" in page:
         </div>
         """, unsafe_allow_html=True)
 
-# ====================================================================
-# पेज 2: डोनर लेजर
-# ====================================================================
+# ---------- पेज 2: डोनर लेजर (केवल लॉगिन के बाद) ----------
 elif "Donor Ledger" in page:
     st.markdown(f"<h2>{svg_icon('donor', 30, '#0B2A4A')} Donor Management <span style='font-size:1rem; font-weight:normal;'>| Trustee Panel</span></h2>", unsafe_allow_html=True)
     st.markdown("---")
@@ -253,9 +351,7 @@ elif "Donor Ledger" in page:
     else:
         st.info("No donors added yet.")
 
-# ====================================================================
-# पेज 3: रसीद जनरेटर
-# ====================================================================
+# ---------- पेज 3: रसीद जनरेटर (केवल लॉगिन के बाद) ----------
 elif "Generate Receipt" in page:
     st.markdown(f"<h2>{svg_icon('receipt', 30, '#D4AF37')} Automated Receipt Engine <span style='font-size:1rem; font-weight:normal;'>(80G Compliant)</span></h2>", unsafe_allow_html=True)
     st.markdown("---")
@@ -338,72 +434,4 @@ elif "Generate Receipt" in page:
             buffer.seek(0)
 
             b64_pdf = base64.b64encode(buffer.getvalue()).decode()
-            href = f'<a href="data:application/pdf;base64,{b64_pdf}" download="Receipt_{donor["receipt_no"]}.pdf" style="background:#D4AF37; color:#0B2A4A; padding:12px 25px; border-radius:40px; text-decoration:none; font-weight:bold;">⬇️ Download Receipt (PDF)</a>'
-            st.markdown(href, unsafe_allow_html=True)
-            st.success("✅ Receipt generated for " + selected_name)
-
-# ====================================================================
-# पेज 4: वेंडर बिल्स (Syntax Error वाली जगह को ठीक किया गया है)
-# ====================================================================
-elif "Vendor Bills" in page:
-    st.markdown(f"<h2>{svg_icon('bill', 30, '#0B2A4A')} Vendor Bill Approvals <span style='font-size:1rem; font-weight:normal;'>| Urban Rehab Invoices</span></h2>", unsafe_allow_html=True)
-    st.markdown("---")
-
-    df_bills = pd.DataFrame(st.session_state.bills)
-    if df_bills.empty:
-        st.info("No pending bills from Urban Rehab.")
-    else:
-        st.dataframe(df_bills, use_container_width=True, height=250)
-
-        st.subheader("⚡ Approve / Reject Bill")
-        # यहाँ f-string की जगह normal dictionary comprehension का इस्तेमाल किया है
-        bill_options = {}
-        for b in st.session_state.bills:
-            if b['status'] == "Pending":
-                bill_options[str(b['id']) + " - " + b['desc'] + " (₹" + str(b['amount']) + ")"] = b
-        
-        if bill_options:
-            selected_bill_key = st.selectbox("Select Pending Bill", list(bill_options.keys()))
-            selected_bill = bill_options[selected_bill_key]
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✅ Approve Bill"):
-                    for b in st.session_state.bills:
-                        if b['id'] == selected_bill['id']:
-                            b['status'] = "Approved"
-                    save_bills()
-                    st.success("Bill #" + str(selected_bill['id']) + " Approved! Transfer to Urban Rehab initiated.")
-                    st.rerun()
-            with col2:
-                if st.button("❌ Reject Bill"):
-                    for b in st.session_state.bills:
-                        if b['id'] == selected_bill['id']:
-                            b['status'] = "Rejected"
-                    save_bills()
-                    # यहाँ f-string हटाकर सामान्य concatenation किया है - इसी से पहले Error आ रहा था
-                    st.warning("Bill #" + str(selected_bill['id']) + " Rejected. Reason noted.")
-                    st.rerun()
-        else:
-            st.info("✅ No pending bills. All cleared.")
-
-# ---------- फुटर ----------
-st.markdown(f"""
-<div class="footer">
-    <div style="display: flex; justify-content: space-between; flex-wrap: wrap;">
-        <div>© 2026 NPRC Global Trust | Regd. under Indian Trusts Act</div>
-        <div>80G Certificate: AABTN1234C | 12A Regd.</div>
-        <div>🌐 nprc-global.health</div>
-    </div>
-    <div style="margin-top: 10px; font-size: 0.8rem; opacity: 0.6;">
-        This is a digital record system. All financial data is audited quarterly.
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# ---------- पहली बार चलने पर CSV बनाएं ----------
-if __name__ == "__main__":
-    if not os.path.exists('donors.csv'):
-        save_donors()
-    if not os.path.exists('bills.csv'):
-        save_bills()
+            href = f'<a href="data:application/pdf;base64,{b64_pdf}" download="Receipt_{donor["receipt_no"]}.pdf" style="background:#D4AF37; color:#0B2A4A; padding:12px 25px; border-radius:40px; text-decor
