@@ -1,12 +1,13 @@
 import os
-import io
-import base64
+import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import streamlit as st
+import io
+import base64
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
+import csv
 
 # ---------- पेज कॉन्फ़िग ----------
 st.set_page_config(
@@ -17,51 +18,15 @@ st.set_page_config(
 )
 
 # ====================================================================
-# 📁 DATA INITIALIZATION & HANDLING
-# ====================================================================
-
-DONORS_FILE = "donors.csv"
-BILLS_FILE = "bills.csv"
-
-def load_data():
-    if 'donors' not in st.session_state:
-        if os.path.exists(DONORS_FILE):
-            try:
-                st.session_state.donors = pd.read_csv(DONORS_FILE).to_dict('records')
-            except Exception:
-                st.session_state.donors = []
-        else:
-            st.session_state.donors = []
-
-    if 'bills' not in st.session_state:
-        if os.path.exists(BILLS_FILE):
-            try:
-                st.session_state.bills = pd.read_csv(BILLS_FILE).to_dict('records')
-            except Exception:
-                st.session_state.bills = []
-        else:
-            st.session_state.bills = []
-
-    if 'receipt_counter' not in st.session_state:
-        st.session_state.receipt_counter = 100 + len(st.session_state.donors)
-
-load_data()
-
-def save_donors():
-    pd.DataFrame(st.session_state.donors).to_csv(DONORS_FILE, index=False)
-
-def save_bills():
-    pd.DataFrame(st.session_state.bills).to_csv(BILLS_FILE, index=False)
-
-# ====================================================================
-# 🔐 AUTHENTICATION
+# 🔐 AUTHENTICATION (LOGIN) SYSTEM
 # ====================================================================
 
 def get_credentials():
     try:
         username = st.secrets["auth"]["username"]
         password = st.secrets["auth"]["password"]
-    except Exception:
+    except:
+        # Default credentials (Insecure, change in Streamlit Secrets)
         username = "trustee"
         password = "NPRC@2026"
     return username, password
@@ -84,7 +49,7 @@ if 'authenticated' not in st.session_state:
     st.session_state.user = None
 
 # ====================================================================
-# CSS & ICONS
+# 🎨 UPDATED CSS थीम (VISIBILITY FIX)
 # ====================================================================
 st.markdown("""
 <style>
@@ -105,7 +70,9 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         border-top: 6px solid #D4AF37;
         margin-bottom: 1.5rem;
+        transition: transform 0.2s;
     }
+    .trust-card:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
     .stat-box {
         background: white;
         padding: 1.2rem;
@@ -115,7 +82,7 @@ st.markdown("""
         border-bottom: 4px solid #D4AF37;
     }
     .stat-box h2 { color: #0B2A4A; font-size: 2.2rem; font-weight: 800; margin: 0; }
-    .stat-box p { color: #4B5563; margin: 0; font-weight: 500; }
+    .stat-box p { color: #4B5563; margin: 0; font-weight: 500; letter-spacing: 0.5px; }
     .footer {
         background: #0B2A4A;
         color: #B0C4DE;
@@ -125,10 +92,87 @@ st.markdown("""
         text-align: center;
         border-top: 4px solid #D4AF37;
     }
+    
+    /* ---------- SIDEBAR VISIBILITY FIX ---------- */
     section[data-testid="stSidebar"] {
         background-color: #0B2A4A !important;
+        color: white !important;
     }
-    section[data-testid="stSidebar"] * { color: white !important; }
+    /* Sidebar ke sare labels aur static text white */
+    section[data-testid="stSidebar"] label, 
+    section[data-testid="stSidebar"] .stMarkdown, 
+    section[data-testid="stSidebar"] h1, 
+    section[data-testid="stSidebar"] h2, 
+    section[data-testid="stSidebar"] h3, 
+    section[data-testid="stSidebar"] h4, 
+    section[data-testid="stSidebar"] p {
+        color: white !important;
+    }
+    
+    /* ✅ INPUT BOX FIX: Text Input ko visible karna */
+    section[data-testid="stSidebar"] .stTextInput input {
+        background-color: #FFFFFF !important;  /* White background */
+        color: #000000 !important;             /* Black text */
+        border: 2px solid #D4AF37 !important;
+        border-radius: 8px !important;
+        padding: 8px 12px !important;
+        font-weight: 500 !important;
+    }
+    section[data-testid="stSidebar"] .stTextInput input:focus {
+        border-color: #FFC107 !important;
+        box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.4) !important;
+    }
+    
+    /* ✅ LOGIN BUTTON FIX: Gold button clearly visible */
+    section[data-testid="stSidebar"] .stFormSubmitButton button {
+        background-color: #D4AF37 !important; /* Gold */
+        color: #0B2A4A !important;            /* Dark blue text */
+        font-weight: bold !important;
+        border-radius: 30px !important;
+        padding: 10px 24px !important;
+        border: none !important;
+        width: 100% !important;
+        font-size: 1.1rem !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important;
+        transition: 0.3s !important;
+    }
+    section[data-testid="stSidebar"] .stFormSubmitButton button:hover {
+        background-color: #C5A028 !important; /* Darker gold */
+        color: #0B2A4A !important;
+        transform: scale(1.02) !important;
+    }
+    
+    /* ✅ LOGOUT BUTTON FIX */
+    section[data-testid="stSidebar"] .stButton button {
+        background-color: #DC3545 !important; /* Red */
+        color: white !important;
+        font-weight: bold !important;
+        border-radius: 30px !important;
+        padding: 8px 16px !important;
+        border: none !important;
+        width: 100% !important;
+    }
+    section[data-testid="stSidebar"] .stButton button:hover {
+        background-color: #B02A37 !important;
+    }
+    
+    /* ✅ SIDEBAR RADIO BUTTONS (Navigation) */
+    section[data-testid="stSidebar"] .stRadio label {
+        color: white !important;
+        font-weight: 500 !important;
+    }
+    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] {
+        background-color: rgba(255,255,255,0.05) !important;
+        border-radius: 10px !important;
+        padding: 8px !important;
+    }
+    
+    /* Dataframe headers */
+    .dataframe th {
+        background-color: #0B2A4A !important;
+        color: white !important;
+        font-weight: 600 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -141,6 +185,30 @@ def svg_icon(name, size=28, color="#FFFFFF"):
         "heart": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
     }
     return icons.get(name, "")
+
+# ---------- सत्र अवस्था (डेटा) ----------
+if 'donors' not in st.session_state:
+    try:
+        df = pd.read_csv('donors.csv')
+        st.session_state.donors = df.to_dict('records')
+    except:
+        st.session_state.donors = []
+
+if 'bills' not in st.session_state:
+    try:
+        df = pd.read_csv('bills.csv')
+        st.session_state.bills = df.to_dict('records')
+    except:
+        st.session_state.bills = []
+
+if 'receipt_counter' not in st.session_state:
+    st.session_state.receipt_counter = 100
+
+def save_donors():
+    pd.DataFrame(st.session_state.donors).to_csv('donors.csv', index=False)
+
+def save_bills():
+    pd.DataFrame(st.session_state.bills).to_csv('bills.csv', index=False)
 
 # ---------- हेडर ----------
 st.markdown(f"""
@@ -165,43 +233,57 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ---------- साइडबार ----------
+# ---------- साइडबार (UI अब पूरी तरह Visible है) ----------
 with st.sidebar:
     st.markdown(f"""
-    <div style="text-align: center; padding: 10px 0; border-bottom: 2px solid #D4AF37;">
-        <div style="background: #D4AF37; width: 60px; height: 60px; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-            {svg_icon("trust", 35, "#0B2A4A")}
+    <div style="text-align: center; padding: 20px 0; border-bottom: 2px solid #D4AF37;">
+        <div style="background: #D4AF37; width: 70px; height: 70px; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+            {svg_icon("trust", 40, "#0B2A4A")}
         </div>
         <h4 style="color: #D4AF37; margin-top: 10px;">NPRC Trust Portal</h4>
     </div>
     """, unsafe_allow_html=True)
+    st.markdown("---")
 
+    # ---------- LOGIN FORM (बिना लॉगिन) ----------
     if not st.session_state.authenticated:
-        st.markdown("<p style='color:#D4AF37; font-weight:bold; text-align:center; margin-top:15px;'>🔐 Trustee Login</p>", unsafe_allow_html=True)
-        with st.form("login_form", clear_on_submit=True):
-            username_input = st.text_input("Username")
-            password_input = st.text_input("Password", type="password")
-            login_btn = st.form_submit_button("🔓 Login", use_container_width=True)
-            
-            if login_btn:
-                if login(username_input, password_input):
-                    st.success("✅ Login Successful!")
-                    st.rerun()
-                else:
-                    st.error("❌ Invalid Username or Password.")
-        page = "🏠 Home (Public)"
-    else:
-        st.markdown(f"""
-        <div style="background:#1A3A5C; padding:10px; border-radius:8px; border-left:4px solid #28A745; margin:15px 0;">
-            <p style="margin:0; color:#28A745; font-size:0.85rem;">✅ Logged in as</p>
-            <p style="margin:0; font-weight:bold; color:white;">{st.session_state.user}</p>
+        st.markdown("""
+        <div style="background:#1A3A5C; padding:12px; border-radius:10px; border:1px solid #D4AF37; margin-bottom:15px; text-align:center;">
+            <p style="color:#D4AF37; font-weight:bold; margin:0;">🔐 Trustee Login</p>
         </div>
         """, unsafe_allow_html=True)
         
+        with st.form("login_form", clear_on_submit=True):
+            username_input = st.text_input("👤 Username", placeholder="Enter Username")
+            password_input = st.text_input("🔑 Password", type="password", placeholder="Enter Password")
+            # यह Button अब CSS की वजह से Gold और पूरी तरह Visible होगा
+            login_btn = st.form_submit_button("🔓 Login")
+            
+            if login_btn:
+                if login(username_input, password_input):
+                    st.success("✅ Login Successful! Welcome Trustee.")
+                    st.rerun()
+                else:
+                    st.error("❌ Invalid Username or Password. Please try again.")
+        
+        st.markdown("---")
+        # बिना लॉगिन सिर्फ Home दिखेगा
+        page = "🏠 Home (Public)"
+    else:
+        # ---------- LOGGED IN USER ----------
+        st.markdown(f"""
+        <div style="background:#1A3A5C; padding:10px; border-radius:8px; border-left:4px solid #28A745; margin-bottom:15px;">
+            <p style="margin:0; color:#28A745; font-size:0.9rem;">✅ Logged in as</p>
+            <p style="margin:0; font-weight:bold; color:white; font-size:1.1rem;">{st.session_state.user}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Logout Button (Red)
         if st.button("🚪 Logout", use_container_width=True):
             logout()
         
         st.markdown("---")
+        # पूरा नेविगेशन
         page = st.radio(
             label="📋 Navigation",
             options=["🏠 Home (Public)", "📒 Donor Ledger", "🧾 Generate Receipt", "📑 Vendor Bills"],
@@ -213,23 +295,31 @@ with st.sidebar:
     st.caption("NPRC Global v2.0 (Secured)")
 
 # ====================================================================
-# PAGE ROUTING
+# पेज हैंडलिंग (सुरक्षा)
 # ====================================================================
 if not st.session_state.authenticated and "Home" not in page:
-    st.warning("⚠️ Access restricted. Please log in from the sidebar.")
+    st.warning("⚠️ You are not logged in. Please login from the sidebar to access Admin features.")
     st.stop()
 
-# ---------- PAGE 1: HOME ----------
+# ---------- पेज 1: होम (Public) ----------
 if "Home" in page:
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.markdown(f"""<div class="stat-box"><h2 style="color:#D4AF37;">12,847</h2><p>{svg_icon('heart', 18, '#D4AF37')} Patients Treated</p></div>""", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="stat-box"><h2 style="color:#D4AF37;">12,847</h2><p>{svg_icon('heart', 18, '#D4AF37')} Patients Treated</p></div>
+        """, unsafe_allow_html=True)
     with col2:
-        st.markdown(f"""<div class="stat-box"><h2>₹4.2Cr</h2><p>{svg_icon('donor', 18, '#0B2A4A')} Funds Raised</p></div>""", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="stat-box"><h2>₹4.2Cr</h2><p>{svg_icon('donor', 18, '#0B2A4A')} Funds Raised</p></div>
+        """, unsafe_allow_html=True)
     with col3:
-        st.markdown(f"""<div class="stat-box"><h2>342</h2><p>{svg_icon('bill', 18, '#0B2A4A')} Rural Health Camps</p></div>""", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="stat-box"><h2>342</h2><p>{svg_icon('bill', 18, '#0B2A4A')} Rural Health Camps</p></div>
+        """, unsafe_allow_html=True)
     with col4:
-        st.markdown(f"""<div class="stat-box"><h2 style="color:#D4AF37;">23</h2><p>{svg_icon('trust', 18, '#D4AF37')} Partner Clinics</p></div>""", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="stat-box"><h2 style="color:#D4AF37;">23</h2><p>{svg_icon('trust', 18, '#D4AF37')} Partner Clinics</p></div>
+        """, unsafe_allow_html=True)
 
     st.markdown("---")
     col_left, col_right = st.columns([2, 1])
@@ -237,34 +327,33 @@ if "Home" in page:
         st.markdown(f"""
         <div class="trust-card">
             <h3>{svg_icon('heart', 24, '#D4AF37')} Our Mission</h3>
-            <p style="font-size:1.1rem; color:#333;">"To provide free, high-quality physiotherapy and rehabilitation services to underprivileged communities across rural India."</p>
+            <p style="font-size:1.1rem;">"To provide free, high-quality physiotherapy and rehabilitation services to underprivileged communities across rural India."</p>
             <div style="background: #F0F4F8; padding: 15px; border-radius: 10px; margin-top: 10px;">
-                <h4 style="color:#0B2A4A; margin-top:0;">📌 Key Programs</h4>
-                <ul style="color:#444;">
-                    <li><strong>Swavalamban Camps:</strong> Monthly rural outreach camps in Bihar, UP, and Jharkhand.</li>
-                    <li><strong>Scholarship for Therapists:</strong> Free PG certifications for rural physiotherapists.</li>
-                    <li><strong>AI Health Monitoring:</strong> Tech-driven rehabilitation tracking.</li>
-                </ul>
+                <h4>📌 Programs</h4>
+                <ul><li><strong>Swavalamban Camps:</strong> Monthly rural outreach camps in Bihar, UP, and Jharkhand.</li>
+                <li><strong>Scholarship for Therapists:</strong> Free PG certifications for rural physiotherapists.</li>
+                <li><strong>AI Health Monitoring:</strong> In collaboration with Urban Rehab for tech-driven care.</li></ul>
+                <p style="color: #6C757D; font-size: 0.9rem; margin-top: 10px;">🔒 <em>Admin features are locked. Please login from the sidebar.</em></p>
             </div>
         </div>
         """, unsafe_allow_html=True)
     with col_right:
         st.markdown(f"""
         <div style="background: #0B2A4A; color: white; padding: 2rem 1.5rem; border-radius: 16px; text-align: center; border: 2px solid #D4AF37;">
-            <h3 style="color: #D4AF37; margin-top:0;">Support the Cause</h3>
-            <p style="font-size: 2.2rem; margin: 0;">❤️</p>
+            <h3 style="color: #D4AF37;">Support the Cause</h3>
+            <p style="font-size: 2.5rem; margin: 0;">❤️</p>
             <p style="opacity: 0.9;">Your donation is eligible for <strong>80G</strong> tax exemption.</p>
             <br>
-            <a href="https://rzp.io/l/nprc-global" target="_blank" style="text-decoration:none;">
-                <div style="background: #D4AF37; color: #0B2A4A; padding: 12px 20px; border-radius: 40px; font-weight: bold; font-size: 1.1rem;">Donate Now →</div>
+            <a href="https://rzp.io/l/nprc-global" target="_blank">
+                <div style="background: #D4AF37; color: #0B2A4A; padding: 12px 20px; border-radius: 40px; font-weight: bold; display: inline-block; font-size: 1.2rem;">Donate Now →</div>
             </a>
-            <p style="font-size: 0.75rem; margin-top: 15px; opacity: 0.7;">UPI: nprc@upi | Razorpay Secure</p>
+            <p style="font-size: 0.7rem; margin-top: 15px; opacity: 0.6;">UPI: nprc@upi | Razorpay Secure</p>
         </div>
         """, unsafe_allow_html=True)
 
-# ---------- PAGE 2: DONOR LEDGER ----------
+# ---------- पेज 2: डोनर लेजर ----------
 elif "Donor Ledger" in page:
-    st.markdown(f"<h2>{svg_icon('donor', 30, '#0B2A4A')} Donor Management <span style='font-size:1rem; font-weight:normal; color:#666;'>| Trustee Panel</span></h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2>{svg_icon('donor', 30, '#0B2A4A')} Donor Management <span style='font-size:1rem; font-weight:normal;'>| Trustee Panel</span></h2>", unsafe_allow_html=True)
     st.markdown("---")
 
     with st.form("add_donor_form", clear_on_submit=True):
@@ -273,52 +362,44 @@ elif "Donor Ledger" in page:
         with col1:
             name = st.text_input("Full Name*")
         with col2:
-            pan = st.text_input("PAN Card*").upper()
+            pan = st.text_input("PAN Card*")
         with col3:
             email = st.text_input("Email ID")
         with col4:
             amount = st.number_input("Donation Amount (₹)*", min_value=100, step=100)
         
-        submitted = st.form_submit_button("💾 Save Donor Record", use_container_width=True)
-        if submitted:
-            if name and pan and amount:
-                new_id = len(st.session_state.donors) + 1
-                st.session_state.receipt_counter += 1
-                receipt_no = f"NPRC-{str(st.session_state.receipt_counter).zfill(4)}"
-                
-                new_donor = {
-                    "id": new_id,
-                    "name": name,
-                    "pan": pan,
-                    "email": email,
-                    "amount": int(amount),
-                    "date": datetime.now().strftime("%Y-%m-%d"),
-                    "receipt_no": receipt_no
-                }
-                st.session_state.donors.append(new_donor)
-                save_donors()
-                st.success(f"✅ Donor **{name}** added successfully! Receipt No: **{receipt_no}**")
-            else:
-                st.error("⚠️ Please fill in all mandatory fields (Name, PAN, Amount).")
+        submitted = st.form_submit_button("💾 Save Donor Record")
+        if submitted and name and pan and amount:
+            new_id = len(st.session_state.donors) + 1
+            st.session_state.receipt_counter += 1
+            receipt_no = "NPRC-" + str(st.session_state.receipt_counter).zfill(4)
+            st.session_state.donors.append({
+                "id": new_id,
+                "name": name,
+                "pan": pan,
+                "email": email,
+                "amount": amount,
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "receipt_no": receipt_no
+            })
+            save_donors()
+            st.success("✅ Donor " + name + " added! Receipt No: " + receipt_no)
 
     st.markdown("---")
     st.subheader("📋 Donor Ledger")
     df_donors = pd.DataFrame(st.session_state.donors)
     if not df_donors.empty:
         st.dataframe(df_donors, use_container_width=True, height=300)
-        csv_data = df_donors.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="⬇️ Download Ledger CSV",
-            data=csv_data,
-            file_name="nprc_donor_ledger.csv",
-            mime="text/csv"
-        )
+        csv = df_donors.to_csv(index=False)
+        b64 = base64.b64encode(csv.encode()).decode()
+        href = '<a href="data:file/csv;base64,' + b64 + '" download="nprc_donor_ledger.csv" style="background:#0B2A4A; color:white; padding:8px 16px; border-radius:30px; text-decoration:none;">⬇️ Download CSV</a>'
+        st.markdown(href, unsafe_allow_html=True)
     else:
-        st.info("No donor records found.")
+        st.info("No donors added yet.")
 
-# ---------- PAGE 3: GENERATE RECEIPT ----------
+# ---------- पेज 3: रसीद जनरेटर ----------
 elif "Generate Receipt" in page:
-    st.markdown(f"<h2>{svg_icon('receipt', 30, '#0B2A4A')} Automated Receipt Engine <span style='font-size:1rem; font-weight:normal; color:#666;'>(80G Compliant)</span></h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2>{svg_icon('receipt', 30, '#D4AF37')} Automated Receipt Engine <span style='font-size:1rem; font-weight:normal;'>(80G Compliant)</span></h2>", unsafe_allow_html=True)
     st.markdown("---")
 
     if not st.session_state.donors:
@@ -328,143 +409,140 @@ elif "Generate Receipt" in page:
         donor_names = df['name'].tolist()
         selected_name = st.selectbox("Select Donor for Receipt", donor_names)
         
-        donor = df[df['name'] == selected_name].iloc[0].to_dict()
-        
-        # PDF Generation Function
-        def create_pdf(donor_data):
+        if st.button("🧾 Generate PDF Receipt"):
+            donor = df[df['name'] == selected_name].iloc[0].to_dict()
+            
             buffer = io.BytesIO()
             c = canvas.Canvas(buffer, pagesize=A4)
             width, height = A4
 
-            # Top Header Bar
             c.setFillColorRGB(0.043, 0.165, 0.294)
             c.rect(0, height-80, width, 80, fill=1, stroke=0)
             c.setFillColorRGB(1, 1, 1)
             c.setFont("Helvetica-Bold", 18)
-            c.drawString(40, height-45, "NPRC GLOBAL")
+            c.drawString(40, height-50, "NPRC GLOBAL")
             c.setFont("Helvetica", 10)
-            c.drawString(40, height-65, "National Physiotherapy & Rehabilitation Council (Trust)")
+            c.drawString(40, height-70, "National Physiotherapy & Rehabilitation Council (Trust)")
 
             c.setFillColorRGB(0.831, 0.686, 0.216)
             c.setFont("Helvetica-Bold", 14)
-            c.drawString(420, height-50, "TAX RECEIPT")
+            c.drawString(400, height-50, "TAX RECEIPT")
             
-            # Receipt Meta
             c.setFillColorRGB(0, 0, 0)
-            c.setFont("Helvetica", 11)
-            y = height - 120
-            c.drawString(40, y, f"Date: {datetime.now().strftime('%d-%m-%Y')}")
-            c.drawString(400, y, f"Receipt No: {donor_data['receipt_no']}")
+            c.setFont("Helvetica", 12)
+            y = height - 130
+            c.drawString(40, y, "Date: " + datetime.now().strftime('%d-%m-%Y'))
+            c.drawString(400, y, "Receipt No: " + donor['receipt_no'])
             
-            # Donor Section
             y -= 40
             c.setFont("Helvetica-Bold", 12)
             c.drawString(40, y, "Donor Details:")
             y -= 25
-            c.setFont("Helvetica", 10)
-            c.drawString(60, y, f"Name: {donor_data['name']}")
+            c.setFont("Helvetica", 11)
+            c.drawString(60, y, "Name: " + donor['name'])
             y -= 20
-            c.drawString(60, y, f"PAN: {donor_data['pan']}")
+            c.drawString(60, y, "PAN: " + donor['pan'])
             y -= 20
-            c.drawString(60, y, f"Email: {donor_data.get('email', 'N/A')}")
+            c.drawString(60, y, "Email: " + donor['email'])
             
-            # Donation Section
-            y -= 35
+            y -= 40
             c.line(40, y, width-40, y)
-            y -= 25
+            y -= 20
             c.setFont("Helvetica-Bold", 12)
             c.drawString(40, y, "Donation Details:")
             y -= 25
-            c.setFont("Helvetica", 10)
-            c.drawString(60, y, f"Amount: INR {donor_data['amount']:,.2f}")
+            c.setFont("Helvetica", 11)
+            c.drawString(60, y, "Amount: ₹" + str(donor['amount']))
             y -= 20
             c.drawString(60, y, "Mode: Online (UPI / Bank Transfer)")
             
-            # Total Box
-            y -= 35
+            y -= 40
             c.line(40, y, width-40, y)
-            y -= 25
+            y -= 20
             c.setFont("Helvetica-Bold", 14)
             c.setFillColorRGB(0.043, 0.165, 0.294)
-            c.drawString(40, y, f"Total Amount: INR {donor_data['amount']:,.2f}")
+            c.drawString(40, y, "Total: ₹" + str(donor['amount']))
             
-            # Footnotes
-            y -= 40
+            y -= 30
             c.setFont("Helvetica-Oblique", 9)
-            c.setFillColorRGB(0.4, 0.4, 0.4)
+            c.setFillColorRGB(0.5, 0.5, 0.5)
             c.drawString(40, y, "** This donation is exempted under Section 80G of the Income Tax Act, 1961.")
             y -= 15
-            c.drawString(40, y, "** This is a system-generated digital receipt. No signature required.")
+            c.drawString(40, y, "** This is a system-generated receipt. No signature required.")
             
-            # Footer
             c.setFillColorRGB(0.043, 0.165, 0.294)
-            c.rect(0, 0, width, 35, fill=1, stroke=0)
+            c.rect(0, 20, width, 30, fill=1, stroke=0)
             c.setFillColorRGB(1, 1, 1)
             c.setFont("Helvetica", 8)
-            c.drawString(40, 15, "NPRC Global Trust | Regd. Office: Patna, Bihar | Contact: nprc@healthcare.in")
+            c.drawString(40, 30, "NPRC Global Trust | Regd. Office: Patna, Bihar | Contact: nprc@healthcare.in")
             
             c.save()
             buffer.seek(0)
-            return buffer.getvalue()
 
-        pdf_bytes = create_pdf(donor)
-        st.download_button(
-            label="⬇️ Download Receipt (PDF)",
-            data=pdf_bytes,
-            file_name=f"Receipt_{donor['receipt_no']}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+            b64_pdf = base64.b64encode(buffer.getvalue()).decode()
+            href = '<a href="data:application/pdf;base64,' + b64_pdf + '" download="Receipt_' + donor["receipt_no"] + '.pdf" style="background:#D4AF37; color:#0B2A4A; padding:12px 25px; border-radius:40px; text-decoration:none; font-weight:bold;">⬇️ Download Receipt (PDF)</a>'
+            st.markdown(href, unsafe_allow_html=True)
+            st.success("✅ Receipt generated for " + selected_name)
 
-# ---------- PAGE 4: VENDOR BILLS ----------
+# ---------- पेज 4: वेंडर बिल्स ----------
 elif "Vendor Bills" in page:
-    st.markdown(f"<h2>{svg_icon('bill', 30, '#0B2A4A')} Vendor Bill Approvals <span style='font-size:1rem; font-weight:normal; color:#666;'>| Invoices</span></h2>", unsafe_allow_html=True)
+    st.markdown(f"<h2>{svg_icon('bill', 30, '#0B2A4A')} Vendor Bill Approvals <span style='font-size:1rem; font-weight:normal;'>| Urban Rehab Invoices</span></h2>", unsafe_allow_html=True)
     st.markdown("---")
 
     df_bills = pd.DataFrame(st.session_state.bills)
     if df_bills.empty:
-        st.info("No bills recorded yet.")
+        st.info("No pending bills from Urban Rehab.")
     else:
         st.dataframe(df_bills, use_container_width=True, height=250)
 
-        pending_bills = [b for b in st.session_state.bills if b.get('status') == "Pending"]
+        st.subheader("⚡ Approve / Reject Bill")
+        bill_options = {}
+        for b in st.session_state.bills:
+            if b['status'] == "Pending":
+                bill_options[str(b['id']) + " - " + b['desc'] + " (₹" + str(b['amount']) + ")"] = b
         
-        if pending_bills:
-            st.subheader("⚡ Review Pending Invoices")
-            bill_options = {f"Bill #{b['id']} - {b['desc']} (₹{b['amount']})": b for b in pending_bills}
+        if bill_options:
             selected_bill_key = st.selectbox("Select Pending Bill", list(bill_options.keys()))
             selected_bill = bill_options[selected_bill_key]
             
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("✅ Approve Bill", use_container_width=True):
+                if st.button("✅ Approve Bill"):
                     for b in st.session_state.bills:
                         if b['id'] == selected_bill['id']:
                             b['status'] = "Approved"
                     save_bills()
-                    st.success(f"Bill #{selected_bill['id']} Approved!")
+                    st.success("Bill #" + str(selected_bill['id']) + " Approved! Transfer to Urban Rehab initiated.")
                     st.rerun()
             with col2:
-                if st.button("❌ Reject Bill", use_container_width=True):
+                if st.button("❌ Reject Bill"):
                     for b in st.session_state.bills:
                         if b['id'] == selected_bill['id']:
                             b['status'] = "Rejected"
                     save_bills()
-                    st.warning(f"Bill #{selected_bill['id']} Rejected.")
+                    st.warning("Bill #" + str(selected_bill['id']) + " Rejected. Reason noted.")
                     st.rerun()
         else:
-            st.info("✅ All bills are reviewed. No pending approvals.")
+            st.info("✅ No pending bills. All cleared.")
 
-# ---------- FOOTER ----------
-st.markdown("""
+# ---------- फुटर ----------
+st.markdown(f"""
 <div class="footer">
-    <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
-        <div>© 2026 NPRC Global Trust | Regd. under Indian Trusts Act, 1882</div>
+    <div style="display: flex; justify-content: space-between; flex-wrap: wrap;">
+        <div>© 2026 NPRC Global Trust | Regd. under Indian Trusts Act</div>
         <div>80G Certificate: AABTN1234C | 12A Regd.</div>
-        <div>🌐 nprc-global.health</div>
+        <div>nprc-global.health</div>
     </div>
     <div style="margin-top: 10px; font-size: 0.8rem; opacity: 0.6;">
-        Official Trustee Management Portal. Audited Quarterly.
+        This is a digital record system. All financial data is audited quarterly.
     </div>
 </div>
 """, unsafe_allow_html=True)
+
+# ---------- CSV फाइलें बनाएं ----------
+if __name__ == "__main__":
+    if not os.path.exists('donors.csv'):
+        save_donors()
+    if not os.path.exists('bills.csv'):
+        save_bills()
+        
