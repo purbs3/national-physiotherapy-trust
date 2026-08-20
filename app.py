@@ -20,6 +20,21 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+# ---------- PWA (Mobile App) Meta Tags ----------
+st.markdown("""
+    <style>
+        /* मोबाइल ऐप जैसा फील देने के लिए टेक्स्ट सेलेक्शन और हाईलाइट बंद करें */
+        .stApp {
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    </style>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0B2A4A">
+""", unsafe_allow_html=True)
 
 # ====================================================================
 # 🖼️ कस्टम लोगो लोडर (NPRC GLOBAL LOGO)
