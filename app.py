@@ -118,6 +118,8 @@ st.markdown(f"""
     .stApp {{ background-color: {bg_main}; }}
     section[data-testid="stSidebar"] {{ background-color: {bg_sidebar} !important; }}
     section[data-testid="stSidebar"] * {{ color: white !important; }}
+    
+    /* Responsive Header Base */
     .main-header {{
         background: linear-gradient(135deg, #0B2A4A 0%, #1A4B6D 100%);
         padding: 1.2rem 2rem;
@@ -127,35 +129,67 @@ st.markdown(f"""
         display: flex;
         align-items: center;
         justify-content: space-between;
+        flex-wrap: wrap; /* जगह कम होने पर नीचे खिसकाएं */
+        gap: 15px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }}
-    .header-left h1 {{ color: white; font-weight: 300; font-size: 1.4rem; margin:0; }}
-    .header-left h2 {{ color: white; font-weight: 700; font-size: 1.8rem; margin:0; }}
-    .badge-gold {{ background: #D4AF37; color: #0B2A4A; padding: 2px 16px; border-radius: 30px; font-weight: 700; font-size: 0.7rem; }}
-    .stat-box {{
-        background: {bg_card};
-        padding: 1.2rem;
-        border-radius: 12px;
-        text-align: center;
-        box-shadow: {shadow};
-        border-bottom: 4px solid {border_color};
-        color: {text_color};
+    
+    /* Logo Container Fix - इसे सिकुड़ने से रोकेगा */
+    .logo-container {{
+        background: white; 
+        width: 65px; 
+        height: 65px; 
+        border-radius: 50%; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2); 
+        overflow: hidden;
+        flex-shrink: 0; /* बहुत जरूरी: लोगो को दबने नहीं देगा */
     }}
+    
+    .header-left-wrap {{ display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }}
+    .header-text-wrap h1 {{ color: white; font-weight: 800; font-size: 1.6rem; margin:0; line-height:1.2; }}
+    .header-text-wrap h2 {{ color: white; font-weight: 500; font-size: 1.1rem; margin:5px 0 0 0; line-height:1.3; }}
+    .header-text-wrap p {{ color: #B0C4DE; margin:0; font-size: 0.85rem; }}
+    .badge-gold {{ background: #D4AF37; color: #0B2A4A; padding: 3px 12px; border-radius: 20px; font-weight: 800; font-size: 0.75rem; white-space: nowrap; }}
+    .right-info {{ text-align: right; color: #D4AF37; }}
+    
+    /* ========================================= */
+    /* 📱 MOBILE RESPONSIVENESS (Media Query)    */
+    /* ========================================= */
+    @media screen and (max-width: 768px) {{
+        .main-header {{
+            padding: 1rem;
+            flex-direction: column; /* मोबाइल पर ऊपर-नीचे सेट करें */
+            align-items: flex-start;
+        }}
+        .header-left-wrap {{
+            gap: 12px;
+            align-items: flex-start;
+        }}
+        .logo-container {{
+            width: 50px; /* मोबाइल पर लोगो थोड़ा छोटा */
+            height: 50px;
+        }}
+        .header-text-wrap h1 {{ font-size: 1.3rem; }}
+        .header-text-wrap h2 {{ font-size: 0.95rem; }}
+        .right-info {{
+            text-align: left; /* मोबाइल पर टेक्स्ट लेफ्ट कर दें */
+            width: 100%;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.1); /* बीच में एक हल्की लाइन */
+        }}
+    }}
+    
+    /* बाकी पुरानी CSS वैसी ही रहेगी */
+    .stat-box {{ background: {bg_card}; padding: 1.2rem; border-radius: 12px; text-align: center; box-shadow: {shadow}; border-bottom: 4px solid {border_color}; color: {text_color}; }}
     .stat-box h2 {{ color: {text_color}; font-size: 2.2rem; font-weight: 800; margin: 0; }}
     .stat-box p {{ color: #4B5563; font-weight: 500; margin: 0; }}
-    .stTextInput input, .stNumberInput input, .stSelectbox div {{
-        background: {bg_card} !important;
-        color: {text_color} !important;
-        border: 1px solid #CBD5E1 !important;
-        border-radius: 8px !important;
-    }}
-    .stButton button {{
-        background: #D4AF37 !important;
-        color: #0B2A4A !important;
-        font-weight: 700 !important;
-        border-radius: 30px !important;
-        border: none !important;
-    }}
+    .footer {{ background: #0B2A4A; color: #B0C4DE; padding: 1.2rem 2rem; border-radius: 20px 20px 0 0; margin-top: 3rem; text-align: center; border-top: 4px solid #D4AF37; }}
+    .stTextInput input, .stNumberInput input, .stSelectbox div {{ background: {bg_card} !important; color: {text_color} !important; border: 1px solid #CBD5E1 !important; border-radius: 8px !important; }}
+    .stButton button {{ background: #D4AF37 !important; color: #0B2A4A !important; font-weight: 700 !important; border-radius: 30px !important; border: none !important; }}
 </style>
 """, unsafe_allow_html=True)
 
