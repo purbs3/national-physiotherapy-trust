@@ -2,24 +2,25 @@ import os
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import io
 import base64
+import zipfile
 from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib import colors
 
-# ---------- पेज कॉन्फ़िग (Offline Mode) ----------
+# ---------- पेज कॉन्फ़िग ----------
 st.set_page_config(
     page_title="NPRC Global - National Physiotherapy Trust",
-    page_icon="⚕️",  # Minimal fallback, but we use SVG in UI
+    page_icon="⚕️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # ====================================================================
-# 🔐 ऑफलाइन ऑथेंटिकेशन (config.json से पढ़ता है)
+# 🔐 ऑफलाइन ऑथेंटिकेशन (config.json से)
 # ====================================================================
 def load_credentials():
     try:
@@ -47,80 +48,75 @@ if 'authenticated' not in st.session_state:
     st.session_state.user = None
 
 # ====================================================================
-# 🎨 CSS: "Government Top Grade" थीम (कोई इमोजी नहीं, सिर्फ SVG)
+# 🎨 डार्क/लाइट थीम + CSS (Govt Look)
 # ====================================================================
-st.markdown("""
+if 'dark_mode' not in st.session_state:
+    st.session_state.dark_mode = False
+
+# CSS डायनामिक बनाएं
+if st.session_state.dark_mode:
+    bg_main = "#0E1117"
+    bg_sidebar = "#1A1A2E"
+    bg_card = "#16213E"
+    text_color = "#E0E0E0"
+    border_color = "#D4AF37"
+    shadow = "0 2px 12px rgba(0,0,0,0.5)"
+else:
+    bg_main = "#F4F7FC"
+    bg_sidebar = "#0B2A4A"
+    bg_card = "#FFFFFF"
+    text_color = "#0B2A4A"
+    border_color = "#D4AF37"
+    shadow = "0 2px 12px rgba(0,0,0,0.04)"
+
+st.markdown(f"""
 <style>
-    /* फॉन्ट और बेस */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
-    html, body, .stApp {
-        font-family: 'Inter', sans-serif;
-        background-color: #F4F7FC;
-    }
-    /* हेडर */
-    .main-header {
+    .stApp {{ background-color: {bg_main}; }}
+    section[data-testid="stSidebar"] {{ background-color: {bg_sidebar} !important; }}
+    section[data-testid="stSidebar"] * {{ color: white !important; }}
+    .main-header {{
         background: linear-gradient(135deg, #0B2A4A 0%, #1A4B6D 100%);
         padding: 1.2rem 2rem;
         border-radius: 0 0 20px 20px;
         margin-bottom: 1.5rem;
         border-bottom: 4px solid #D4AF37;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         display: flex;
         align-items: center;
         justify-content: space-between;
-    }
-    .header-left { display: flex; align-items: center; gap: 20px; }
-    .header-left h1 { color: white; font-weight: 300; letter-spacing: 2px; font-size: 1.5rem; margin:0; }
-    .header-left h2 { color: white; font-weight: 700; font-size: 1.8rem; margin:0; }
-    .header-left p { color: #B0C4DE; margin:0; font-size: 0.9rem; }
-    .badge-gold { background: #D4AF37; color: #0B2A4A; padding: 2px 16px; border-radius: 30px; font-weight: 700; font-size: 0.7rem; letter-spacing: 1px; }
-    .header-right { text-align: right; color: #D4AF37; border-left: 2px solid #D4AF37; padding-left: 20px; }
-    .header-right small { color: #B0C4DE; display: block; }
-
-    /* साइडबार */
-    section[data-testid="stSidebar"] {
-        background-color: #0B2A4A !important;
-        padding-top: 0;
-    }
-    section[data-testid="stSidebar"] * { color: white !important; }
-    section[data-testid="stSidebar"] .stRadio label { 
-        padding: 10px 15px; 
-        border-radius: 8px; 
-        width: 100%; 
-        transition: 0.2s;
-        font-weight: 500;
-    }
-    section[data-testid="stSidebar"] .stRadio label:hover { background: #1A4B6D; }
-    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] { gap: 4px; }
-    
-    /* कार्ड */
-    .gov-card {
-        background: white;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    }}
+    .header-left h1 {{ color: white; font-weight: 300; font-size: 1.4rem; margin:0; }}
+    .header-left h2 {{ color: white; font-weight: 700; font-size: 1.8rem; margin:0; }}
+    .badge-gold {{ background: #D4AF37; color: #0B2A4A; padding: 2px 16px; border-radius: 30px; font-weight: 700; font-size: 0.7rem; }}
+    .gov-card {{
+        background: {bg_card};
         padding: 1.5rem;
         border-radius: 16px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-        border-left: 6px solid #D4AF37;
+        box-shadow: {shadow};
+        border-left: 6px solid {border_color};
         margin-bottom: 1.2rem;
-        transition: 0.2s;
-    }
-    .gov-card:hover { box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
-    .stat-box {
-        background: white;
+        color: {text_color};
+    }}
+    .stat-box {{
+        background: {bg_card};
         padding: 1.2rem;
         border-radius: 12px;
         text-align: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-        border-bottom: 4px solid #D4AF37;
-    }
-    .stat-box h2 { color: #0B2A4A; font-size: 2.4rem; font-weight: 800; margin: 0; }
-    .stat-box p { color: #4B5563; font-weight: 500; margin: 0; }
-
-    /* इनपुट बॉक्स (Offline visibility fix) */
-    .stTextInput input { background: white !important; color: black !important; border: 1px solid #CBD5E1 !important; border-radius: 8px !important; }
-    .stButton button { background: #D4AF37 !important; color: #0B2A4A !important; font-weight: 700 !important; border-radius: 30px !important; border: none !important; padding: 0.5rem 2rem !important; width: 100% !important; }
-    .stButton button:hover { background: #C5A028 !important; transform: scale(1.02); }
-    
-    .footer {
+        box-shadow: {shadow};
+        border-bottom: 4px solid {border_color};
+        color: {text_color};
+    }}
+    .stat-box h2 {{ color: {text_color}; font-size: 2.2rem; font-weight: 800; margin: 0; }}
+    .stat-box p {{ color: #4B5563; font-weight: 500; margin: 0; }}
+    .alert-card {{
+        background: #FEF9E7;
+        border-left: 6px solid #F1C40F;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        color: #0B2A4A;
+    }}
+    .footer {{
         background: #0B2A4A;
         color: #B0C4DE;
         padding: 1.2rem 2rem;
@@ -128,13 +124,26 @@ st.markdown("""
         margin-top: 3rem;
         text-align: center;
         border-top: 4px solid #D4AF37;
-        font-size: 0.85rem;
-    }
+    }}
+    /* Input Boxes */
+    .stTextInput input, .stNumberInput input, .stSelectbox div {{
+        background: {bg_card} !important;
+        color: {text_color} !important;
+        border: 1px solid #CBD5E1 !important;
+        border-radius: 8px !important;
+    }}
+    .stButton button {{
+        background: #D4AF37 !important;
+        color: #0B2A4A !important;
+        font-weight: 700 !important;
+        border-radius: 30px !important;
+        border: none !important;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
 # ====================================================================
-# 🎯 SVG आइकॉन (सारे इमोजी हटाकर)
+# 🎯 SVG आइकॉन (हर जगह इमोजी की जगह)
 # ====================================================================
 def svg_icon(name, size=24, color="#FFFFFF"):
     icons = {
@@ -145,13 +154,14 @@ def svg_icon(name, size=24, color="#FFFFFF"):
         "camp": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M12 2v20M2 12h20M4 4l16 16M4 20l16-16"/><circle cx="12" cy="12" r="2"/></svg>',
         "bill": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
         "log": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M12 2v4M12 22v-4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M22 12h-4"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>',
-        "lock": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
-        "receipt": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M4 4h16v16H4z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>',
+        "settings": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>',
+        "report": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+        "dark": f'<svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
     }
     return icons.get(name, "")
 
 # ====================================================================
-# 📂 डेटा लोड/सेव (Offline CSV)
+# 📂 डेटा फंक्शन्स (लोड/सेव/बैकअप)
 # ====================================================================
 def load_data(filename, default):
     try:
@@ -164,7 +174,7 @@ def load_data(filename, default):
 def save_data(filename, data):
     pd.DataFrame(data).to_csv(filename, index=False)
 
-# इनिशियलाइज़ स्टेट
+# स्टेट इनिशियलाइज़
 if 'donors' not in st.session_state:
     st.session_state.donors = load_data('donors.csv', [])
 if 'patients' not in st.session_state:
@@ -173,6 +183,8 @@ if 'camps' not in st.session_state:
     st.session_state.camps = load_data('camps.csv', [])
 if 'bills' not in st.session_state:
     st.session_state.bills = load_data('bills.csv', [{'id':1, 'vendor':'Urban Rehab', 'desc':'Therapist Visit', 'amount':15000, 'status':'Pending'}])
+if 'expenses' not in st.session_state:
+    st.session_state.expenses = load_data('expenses.csv', [])
 if 'logs' not in st.session_state:
     st.session_state.logs = load_data('logs.csv', [])
 if 'receipt_counter' not in st.session_state:
@@ -181,17 +193,17 @@ if 'receipt_counter' not in st.session_state:
 def log_action(action):
     st.session_state.logs.append({
         'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'user': st.session_state.user,
+        'user': st.session_state.user if 'user' in st.session_state else 'admin',
         'action': action
     })
     save_data('logs.csv', st.session_state.logs)
 
 # ====================================================================
-# 🏛️ हेडर (Govt Look)
+# 🏛️ हेडर
 # ====================================================================
 st.markdown(f"""
 <div class="main-header">
-    <div class="header-left">
+    <div style="display:flex; align-items:center; gap:20px;">
         <div style="background:#D4AF37; width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center;">
             {svg_icon('gov', 32, '#0B2A4A')}
         </div>
@@ -201,171 +213,165 @@ st.markdown(f"""
                 <span class="badge-gold">TRUST</span>
             </div>
             <h2>National Physiotherapy & Rehabilitation Council</h2>
-            <p>Ministry of Health | Govt. of India</p>
+            <p style="color:#B0C4DE; margin:0;">Ministry of Health | Govt. of India</p>
         </div>
     </div>
-    <div class="header-right">
+    <div style="text-align:right; color:#D4AF37;">
         <small>80G Exemption</small>
-        <strong style="font-size:1.2rem;">PAN: AABTN1234C</strong>
+        <div><strong>PAN: AABTN1234C</strong></div>
+        <small style="color:#B0C4DE; font-size:0.7rem;">Offline v4.0</small>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 # ====================================================================
-# 📌 साइडबार नेविगेशन (इमोजी मुक्त)
+# 📌 साइडबार + Login
 # ====================================================================
 with st.sidebar:
     st.markdown(f"""
-    <div style="text-align:center; padding:20px 0; border-bottom:2px solid #D4AF37;">
-        <div style="background:#D4AF37; width:70px; height:70px; border-radius:50%; margin:0 auto; display:flex; align-items:center; justify-content:center;">
-            {svg_icon('gov', 40, '#0B2A4A')}
+    <div style="text-align:center; padding:15px 0; border-bottom:2px solid #D4AF37;">
+        <div style="background:#D4AF37; width:60px; height:60px; border-radius:50%; margin:0 auto; display:flex; align-items:center; justify-content:center;">
+            {svg_icon('gov', 35, '#0B2A4A')}
         </div>
-        <h4 style="color:#D4AF37; margin-top:10px;">Offline Portal</h4>
+        <h4 style="color:#D4AF37; margin-top:10px;">NPRC Portal</h4>
     </div>
     """, unsafe_allow_html=True)
 
     if not st.session_state.authenticated:
-        st.markdown('<div style="background:#1A3A5C; padding:10px; border-radius:8px; border:1px solid #D4AF37; text-align:center; margin:10px 0;"><span style="color:#D4AF37;">🔐 SECURE LOGIN</span></div>', unsafe_allow_html=True)
         with st.form("login_form"):
-            user = st.text_input("Username", placeholder="Enter Username")
-            pwd = st.text_input("Password", type="password", placeholder="Enter Password")
+            st.text_input("Username", key="u")
+            st.text_input("Password", type="password", key="p")
             if st.form_submit_button("Authenticate"):
-                if login(user, pwd):
+                if login(st.session_state.u, st.session_state.p):
                     st.success("Access Granted")
                     st.rerun()
                 else:
-                    st.error("Invalid Credentials")
-        st.stop()  # अगर लॉगिन नहीं है तो यहीं रुकें
+                    st.error("Invalid")
+        st.stop()
+
     else:
         st.markdown(f"""
         <div style="background:#1A3A5C; padding:8px; border-radius:8px; border-left:4px solid #28A745; margin:10px 0;">
-            <p style="margin:0; color:#28A745; font-size:0.8rem;">Active Session</p>
+            <p style="margin:0; color:#28A745;">Active Session</p>
             <p style="margin:0; font-weight:bold;">{st.session_state.user}</p>
         </div>
         """, unsafe_allow_html=True)
+        
         if st.button("Logout", use_container_width=True):
             logout()
 
         st.markdown("---")
-        # Navigation using Radio (Text only, Emoji-free)
         page = st.radio(
-            label="Navigation",
-            options=[
-                "Overview Dashboard",
-                "Donor Management",
-                "Patient Registry",
-                "Camp Management",
-                "Vendor Bills",
-                "Audit Logs"
-            ],
-            index=0
+            "Navigation",
+            ["Dashboard", "Donors", "Patients", "Camps", "Expenses", "Bills", "Reports", "Settings"]
         )
         st.markdown("---")
-        st.caption("Version 3.0 | Offline Mode")
+        st.caption("NPRC v4.0 | Offline")
 
 # ====================================================================
-# 🧭 पेज हैंडलर
+# 🧭 पेज हैंडलिंग
 # ====================================================================
 
-# --- DASHBOARD ---
-if page == "Overview Dashboard":
-    st.markdown(f"<h2 style='display:flex; align-items:center; gap:10px;'>{svg_icon('dashboard', 30, '#0B2A4A')} Executive Dashboard</h2>", unsafe_allow_html=True)
+# ========== 1. DASHBOARD ==========
+if page == "Dashboard":
+    st.markdown(f"<h2>{svg_icon('dashboard', 30, '#0B2A4A')} Executive Dashboard</h2>", unsafe_allow_html=True)
     st.markdown("---")
     
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(f"<div class='stat-box'><h2>{len(st.session_state.donors)}</h2><p>{svg_icon('donor', 18, '#0B2A4A')} Donors</p></div>", unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"<div class='stat-box'><h2>{len(st.session_state.patients)}</h2><p>{svg_icon('patient', 18, '#0B2A4A')} Patients</p></div>", unsafe_allow_html=True)
-    with col3:
-        st.markdown(f"<div class='stat-box'><h2>{len(st.session_state.camps)}</h2><p>{svg_icon('camp', 18, '#0B2A4A')} Camps</p></div>", unsafe_allow_html=True)
-    with col4:
-        total_donations = sum([d['amount'] for d in st.session_state.donors]) if st.session_state.donors else 0
-        st.markdown(f"<div class='stat-box'><h2>₹{total_donations:,.0f}</h2><p>{svg_icon('receipt', 18, '#0B2A4A')} Funds Raised</p></div>", unsafe_allow_html=True)
+    # Alerts
+    pending_bills = len([b for b in st.session_state.bills if b['status']=='Pending'])
+    today = datetime.now().date()
+    followups = len([p for p in st.session_state.patients if 'next_followup' in p and datetime.strptime(p['next_followup'], '%Y-%m-%d').date() <= today + timedelta(days=3)])
+    if pending_bills > 0 or followups > 0:
+        st.markdown('<div style="background:#FEF9E7; padding:15px; border-radius:10px; border-left:6px solid #F1C40F; margin-bottom:20px;"><strong>System Notifications</strong>', unsafe_allow_html=True)
+        if pending_bills > 0: st.markdown(f'- {pending_bills} bill(s) pending approval.')
+        if followups > 0: st.markdown(f'- {followups} patient(s) due for follow-up.')
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("---")
-    col_chart1, col_chart2 = st.columns(2)
-    with col_chart1:
+    col1, col2, col3, col4 = st.columns(4)
+    total_donations = sum(d['amount'] for d in st.session_state.donors)
+    total_expenses = sum(e['amount'] for e in st.session_state.expenses)
+    with col1: st.markdown(f"<div class='stat-box'><h2>{len(st.session_state.donors)}</h2><p>{svg_icon('donor',18,'#0B2A4A')} Donors</p></div>", unsafe_allow_html=True)
+    with col2: st.markdown(f"<div class='stat-box'><h2>{len(st.session_state.patients)}</h2><p>{svg_icon('patient',18,'#0B2A4A')} Patients</p></div>", unsafe_allow_html=True)
+    with col3: st.markdown(f"<div class='stat-box'><h2>₹{total_donations:,.0f}</h2><p>Funds Raised</p></div>", unsafe_allow_html=True)
+    with col4: st.markdown(f"<div class='stat-box'><h2>₹{total_expenses:,.0f}</h2><p>Total Expenses</p></div>", unsafe_allow_html=True)
+
+    # Charts
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
         if st.session_state.donors:
             df = pd.DataFrame(st.session_state.donors)
-            fig = px.pie(df, values='amount', names='name', title='Donor Contribution', color_discrete_sequence=px.colors.sequential.Blues_r)
-            fig.update_layout(plot_bgcolor='white', paper_bgcolor='white', font=dict(color='#0B2A4A'))
+            fig = px.pie(df, values='amount', names='name', title='Donor Contribution')
+            fig.update_layout(plot_bgcolor='white', paper_bgcolor='white')
             st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No donor data to display.")
-    with col_chart2:
-        if st.session_state.camps:
-            df = pd.DataFrame(st.session_state.camps)
-            fig = px.bar(df, x='location', y='expenses', title='Camp Expenses by Location', color='location', color_discrete_sequence=px.colors.sequential.Gold_r)
-            fig.update_layout(plot_bgcolor='white', paper_bgcolor='white', font=dict(color='#0B2A4A'))
+    with col_c2:
+        if st.session_state.expenses:
+            df = pd.DataFrame(st.session_state.expenses)
+            fig = px.bar(df, x='category', y='amount', title='Expense by Category', color='category')
+            fig.update_layout(showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No camp data to display.")
 
-# --- DONOR MANAGEMENT ---
-elif page == "Donor Management":
+# ========== 2. DONORS ==========
+elif page == "Donors":
     st.markdown(f"<h2>{svg_icon('donor', 30, '#0B2A4A')} Donor Management</h2>", unsafe_allow_html=True)
-    st.markdown("---")
     with st.form("add_donor"):
-        c1, c2, c3, c4 = st.columns(4)
+        c1,c2,c3,c4 = st.columns(4)
         with c1: name = st.text_input("Full Name")
-        with c2: pan = st.text_input("PAN Card")
+        with c2: pan = st.text_input("PAN")
         with c3: email = st.text_input("Email")
-        with c4: amount = st.number_input("Amount (₹)", min_value=100, step=100)
+        with c4: amt = st.number_input("Amount (₹)", min_value=100)
         if st.form_submit_button("Register Donor"):
-            if name and pan and amount:
+            if name and amt:
                 st.session_state.receipt_counter += 1
                 st.session_state.donors.append({
-                    'id': len(st.session_state.donors)+1,
-                    'name': name, 'pan': pan, 'email': email, 'amount': amount,
-                    'date': datetime.now().strftime("%Y-%m-%d"),
+                    'id': len(st.session_state.donors)+1, 'name': name, 'pan': pan,
+                    'email': email, 'amount': amt, 'date': datetime.now().strftime("%Y-%m-%d"),
                     'receipt_no': f"NPRC-{st.session_state.receipt_counter:04d}"
                 })
                 save_data('donors.csv', st.session_state.donors)
-                log_action(f"Added Donor: {name} (₹{amount})")
+                log_action(f"Added Donor: {name}")
                 st.success("Donor Registered")
     if st.session_state.donors:
         st.dataframe(pd.DataFrame(st.session_state.donors), use_container_width=True)
 
-# --- PATIENT REGISTRY ---
-elif page == "Patient Registry":
+# ========== 3. PATIENTS (Updated with Follow-up) ==========
+elif page == "Patients":
     st.markdown(f"<h2>{svg_icon('patient', 30, '#0B2A4A')} Patient Registry</h2>", unsafe_allow_html=True)
-    st.markdown("---")
     with st.form("add_patient"):
-        c1, c2, c3 = st.columns(3)
-        with c1: p_name = st.text_input("Patient Name")
-        with c2: p_age = st.number_input("Age", min_value=1, step=1)
-        with c3: p_cond = st.selectbox("Condition", ["Stroke", "Paralysis", "Fracture", "Post-Surgery", "Other"])
-        p_village = st.text_input("Village / Location")
-        if st.form_submit_button("Add Patient Record"):
-            if p_name:
+        c1,c2,c3 = st.columns(3)
+        with c1: name = st.text_input("Name")
+        with c2: age = st.number_input("Age", min_value=1)
+        with c3: cond = st.selectbox("Condition", ["Stroke", "Paralysis", "Fracture", "Post-Surgery", "Other"])
+        village = st.text_input("Village")
+        status = st.selectbox("Status", ["Active", "Recovered", "Referred", "Dropout"])
+        last_visit = st.date_input("Last Visit")
+        next_followup = st.date_input("Next Follow-up")
+        if st.form_submit_button("Add Patient"):
+            if name:
                 st.session_state.patients.append({
-                    'id': len(st.session_state.patients)+1,
-                    'name': p_name, 'age': p_age, 'condition': p_cond,
-                    'village': p_village, 'status': 'Active',
+                    'id': len(st.session_state.patients)+1, 'name': name, 'age': age,
+                    'condition': cond, 'village': village, 'status': status,
+                    'last_visit': str(last_visit), 'next_followup': str(next_followup),
                     'reg_date': datetime.now().strftime("%Y-%m-%d")
                 })
                 save_data('patients.csv', st.session_state.patients)
-                log_action(f"Added Patient: {p_name}")
+                log_action(f"Added Patient: {name}")
                 st.success("Patient Added")
     if st.session_state.patients:
         st.dataframe(pd.DataFrame(st.session_state.patients), use_container_width=True)
 
-# --- CAMP MANAGEMENT ---
-elif page == "Camp Management":
-    st.markdown(f"<h2>{svg_icon('camp', 30, '#0B2A4A')} Rural Health Camps</h2>", unsafe_allow_html=True)
-    st.markdown("---")
+# ========== 4. CAMPS ==========
+elif page == "Camps":
+    st.markdown(f"<h2>{svg_icon('camp', 30, '#0B2A4A')} Camp Management</h2>", unsafe_allow_html=True)
     with st.form("add_camp"):
-        c1, c2, c3 = st.columns(3)
+        c1,c2,c3 = st.columns(3)
         with c1: loc = st.text_input("Location")
         with c2: date = st.date_input("Date")
-        with c3: exp = st.number_input("Expenses (₹)", min_value=0, step=100)
+        with c3: exp = st.number_input("Expenses", min_value=0)
         if st.form_submit_button("Schedule Camp"):
             if loc:
                 st.session_state.camps.append({
-                    'id': len(st.session_state.camps)+1,
-                    'location': loc, 'date': str(date), 'expenses': exp,
-                    'created': datetime.now().strftime("%Y-%m-%d")
+                    'id': len(st.session_state.camps)+1, 'location': loc,
+                    'date': str(date), 'expenses': exp
                 })
                 save_data('camps.csv', st.session_state.camps)
                 log_action(f"Scheduled Camp at {loc}")
@@ -373,52 +379,143 @@ elif page == "Camp Management":
     if st.session_state.camps:
         st.dataframe(pd.DataFrame(st.session_state.camps), use_container_width=True)
 
-# --- VENDOR BILLS ---
-elif page == "Vendor Bills":
-    st.markdown(f"<h2>{svg_icon('bill', 30, '#0B2A4A')} Vendor Bill Approvals</h2>", unsafe_allow_html=True)
-    st.markdown("---")
+# ========== 5. EXPENSES (NEW) ==========
+elif page == "Expenses":
+    st.markdown(f"<h2>{svg_icon('bill', 30, '#0B2A4A')} Expense Ledger</h2>", unsafe_allow_html=True)
+    with st.form("add_expense"):
+        c1,c2,c3 = st.columns(3)
+        with c1: cat = st.selectbox("Category", ["Office", "Staff Salary", "Equipment", "Travel", "Medicine", "Other"])
+        with c2: desc = st.text_input("Description")
+        with c3: amt = st.number_input("Amount (₹)", min_value=0)
+        if st.form_submit_button("Add Expense"):
+            if desc and amt:
+                st.session_state.expenses.append({
+                    'id': len(st.session_state.expenses)+1, 'category': cat,
+                    'description': desc, 'amount': amt,
+                    'date': datetime.now().strftime("%Y-%m-%d")
+                })
+                save_data('expenses.csv', st.session_state.expenses)
+                log_action(f"Added Expense: {desc}")
+                st.success("Expense Added")
+    if st.session_state.expenses:
+        st.dataframe(pd.DataFrame(st.session_state.expenses), use_container_width=True)
+
+# ========== 6. BILLS ==========
+elif page == "Bills":
+    st.markdown(f"<h2>{svg_icon('bill', 30, '#0B2A4A')} Vendor Bills</h2>", unsafe_allow_html=True)
     if not st.session_state.bills:
-        st.info("No bills pending.")
+        st.info("No bills")
     else:
         df = pd.DataFrame(st.session_state.bills)
         st.dataframe(df, use_container_width=True)
-        st.subheader("Process Bill")
-        pending = [b for b in st.session_state.bills if b['status'] == 'Pending']
+        pending = [b for b in st.session_state.bills if b['status']=='Pending']
         if pending:
-            opts = {f"{b['id']} - {b['desc']} (₹{b['amount']})": b for b in pending}
+            opts = {f"{b['id']} - {b['desc']}": b for b in pending}
             sel = st.selectbox("Select Bill", list(opts.keys()))
             bill = opts[sel]
-            c1, c2 = st.columns(2)
+            c1,c2 = st.columns(2)
             if c1.button("Approve"):
                 for b in st.session_state.bills:
-                    if b['id'] == bill['id']:
-                        b['status'] = 'Approved'
+                    if b['id'] == bill['id']: b['status']='Approved'
                 save_data('bills.csv', st.session_state.bills)
                 log_action(f"Approved Bill #{bill['id']}")
-                st.success("Bill Approved")
                 st.rerun()
             if c2.button("Reject"):
                 for b in st.session_state.bills:
-                    if b['id'] == bill['id']:
-                        b['status'] = 'Rejected'
+                    if b['id'] == bill['id']: b['status']='Rejected'
                 save_data('bills.csv', st.session_state.bills)
                 log_action(f"Rejected Bill #{bill['id']}")
-                st.warning("Bill Rejected")
                 st.rerun()
 
-# --- AUDIT LOGS ---
-elif page == "Audit Logs":
-    st.markdown(f"<h2>{svg_icon('log', 30, '#0B2A4A')} System Audit Trail</h2>", unsafe_allow_html=True)
+# ========== 7. REPORTS (NEW: FY Filter + Annual PDF) ==========
+elif page == "Reports":
+    st.markdown(f"<h2>{svg_icon('report', 30, '#0B2A4A')} Compliance Reports</h2>", unsafe_allow_html=True)
+    year = st.selectbox("Financial Year", ["2024-25", "2025-26", "2026-27"])
+    
+    if st.button("Generate Annual Report (PDF)"):
+        buffer = io.BytesIO()
+        c = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+        c.setFillColorRGB(0.043, 0.165, 0.294)
+        c.rect(0, height-80, width, 80, fill=1)
+        c.setFillColorRGB(1,1,1)
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(40, height-50, "NPRC GLOBAL TRUST")
+        c.setFont("Helvetica", 10)
+        c.drawString(40, height-70, f"Annual Compliance Report - FY {year}")
+        
+        c.setFillColorRGB(0,0,0)
+        y = height - 120
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(40, y, "1. Donor Summary")
+        y -= 20
+        c.setFont("Helvetica", 10)
+        c.drawString(60, y, f"Total Donors: {len(st.session_state.donors)}")
+        y -= 15
+        c.drawString(60, y, f"Total Funds: ₹{sum(d['amount'] for d in st.session_state.donors):,.2f}")
+        
+        y -= 30
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(40, y, "2. Patient Impact")
+        y -= 20
+        c.setFont("Helvetica", 10)
+        c.drawString(60, y, f"Total Patients Treated: {len(st.session_state.patients)}")
+        y -= 15
+        recovered = len([p for p in st.session_state.patients if p.get('status')=='Recovered'])
+        c.drawString(60, y, f"Recovered: {recovered}")
+        
+        y -= 30
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(40, y, "3. Financial Summary")
+        y -= 20
+        c.setFont("Helvetica", 10)
+        c.drawString(60, y, f"Total Expenses: ₹{sum(e['amount'] for e in st.session_state.expenses):,.2f}")
+        y -= 15
+        c.drawString(60, y, f"Net Balance: ₹{(sum(d['amount'] for d in st.session_state.donors) - sum(e['amount'] for e in st.session_state.expenses)):,.2f}")
+
+        c.setFillColorRGB(0.043, 0.165, 0.294)
+        c.rect(0, 20, width, 30, fill=1)
+        c.setFillColorRGB(1,1,1)
+        c.setFont("Helvetica", 8)
+        c.drawString(40, 30, "This is a system-generated report for internal compliance.")
+        c.save()
+        buffer.seek(0)
+        b64 = base64.b64encode(buffer.getvalue()).decode()
+        st.markdown(f'<a href="data:application/pdf;base64,{b64}" download="Annual_Report_{year}.pdf" style="background:#D4AF37; color:#0B2A4A; padding:12px 25px; border-radius:30px; text-decoration:none; font-weight:bold;">⬇️ Download PDF Report</a>', unsafe_allow_html=True)
+
+# ========== 8. SETTINGS (Backup + Dark Mode) ==========
+elif page == "Settings":
+    st.markdown(f"<h2>{svg_icon('settings', 30, '#0B2A4A')} System Settings</h2>", unsafe_allow_html=True)
     st.markdown("---")
-    st.caption("Every action performed in the system is logged here for compliance.")
-    if st.session_state.logs:
-        df = pd.DataFrame(st.session_state.logs)
-        st.dataframe(df, use_container_width=True, height=400)
-        csv = df.to_csv(index=False)
-        b64 = base64.b64encode(csv.encode()).decode()
-        st.markdown(f'<a href="data:file/csv;base64,{b64}" download="audit_logs.csv" style="background:#0B2A4A; color:white; padding:8px 16px; border-radius:30px; text-decoration:none;">Download Audit Logs</a>', unsafe_allow_html=True)
-    else:
-        st.info("No logs recorded yet.")
+    
+    # Dark Mode
+    if st.button("Toggle Dark Mode"):
+        st.session_state.dark_mode = not st.session_state.dark_mode
+        st.rerun()
+    
+    st.markdown("---")
+    st.subheader("Data Backup & Restore")
+    
+    # Backup
+    if st.button("Create Full Backup (ZIP)"):
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w') as zf:
+            for f in ['donors.csv', 'patients.csv', 'camps.csv', 'bills.csv', 'expenses.csv', 'logs.csv']:
+                if os.path.exists(f):
+                    zf.write(f)
+        zip_buffer.seek(0)
+        b64_zip = base64.b64encode(zip_buffer.getvalue()).decode()
+        st.markdown(f'<a href="data:application/zip;base64,{b64_zip}" download="NPRC_Backup_{datetime.now().strftime("%Y%m%d")}.zip" style="background:#0B2A4A; color:white; padding:10px 20px; border-radius:30px; text-decoration:none;">Download Backup ZIP</a>', unsafe_allow_html=True)
+        log_action("Created Backup")
+    
+    # Restore
+    uploaded = st.file_uploader("Restore from Backup", type=['zip'])
+    if uploaded:
+        with zipfile.ZipFile(uploaded, 'r') as zf:
+            zf.extractall('.')
+        st.success("Restore Successful! Reloading...")
+        log_action("Restored from Backup")
+        st.rerun()
 
 # ====================================================================
 # 📌 फुटर
@@ -428,7 +525,7 @@ st.markdown(f"""
     <div style="display:flex; justify-content:space-between; flex-wrap:wrap;">
         <div>NPRC Global Trust | Regd. under Indian Trusts Act</div>
         <div>80G: AABTN1234C | 12A Registered</div>
-        <div>Offline System v3.0</div>
+        <div>Offline System v4.0</div>
     </div>
     <div style="margin-top:8px; opacity:0.6; font-size:0.8rem;">All data is stored locally. No internet connection required.</div>
 </div>
@@ -436,8 +533,8 @@ st.markdown(f"""
 
 # पहली बार CSV बनाएं
 if __name__ == "__main__":
-    if not os.path.exists('donors.csv'): save_data('donors.csv', [])
-    if not os.path.exists('patients.csv'): save_data('patients.csv', [])
-    if not os.path.exists('camps.csv'): save_data('camps.csv', [])
-    if not os.path.exists('bills.csv'): save_data('bills.csv', [{'id':1, 'vendor':'Urban Rehab', 'desc':'Therapist Visit', 'amount':15000, 'status':'Pending'}])
-    if not os.path.exists('logs.csv'): save_data('logs.csv', [])
+    for f in ['donors.csv', 'patients.csv', 'camps.csv', 'bills.csv', 'expenses.csv', 'logs.csv']:
+        if not os.path.exists(f):
+            save_data(f, [])
+    if not os.path.exists('bills.csv'):
+        save_data('bills.csv', [{'id':1, 'vendor':'Urban Rehab', 'desc':'Therapist Visit', 'amount':15000, 'status':'Pending'}])
