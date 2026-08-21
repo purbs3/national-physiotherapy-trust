@@ -335,7 +335,7 @@ def generate_80g_receipt(donor):
 st.markdown(f"""
 <div class="main-header">
     <div style="display:flex; align-items:center; gap:20px;">
-        <div style="background:white; width:165px; height:159px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); overflow:hidden;">
+        <div style="background:white; width:167px; height:155px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); overflow:hidden;">
             {logo_html}
         </div>
         <div>
