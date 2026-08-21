@@ -340,7 +340,7 @@ st.markdown(f"""
         </div>
         <div>
             <div style=" display:flex; align-items:center; gap:12px;">
-                <h1 style ="font-size: 200px; color: #F8F6F0;">NPRC GLOBAL</h1>
+                <h1 style ="font-size: 55px; color: #F8F6F0;">NPRC GLOBAL</h1>
                 <span class="badge-gold">TRUST</span>
             </div>
             <h2>National Physiotherapy & Rehabilitation Council</h2>
