@@ -130,7 +130,7 @@ st.markdown(f"""
         align-items: center;
         justify-content: space-between;
         flex-wrap: wrap; /* जगह कम होने पर नीचे खिसकाएं */
-        gap: 15px;
+        gap: 5px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }}
     
