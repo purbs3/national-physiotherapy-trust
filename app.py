@@ -122,7 +122,7 @@ st.markdown(f"""
     /* Responsive Header Base */
     .main-header {{
         background: linear-gradient(135deg, #0B2A4A 0%, #1A4B6D 100%);
-        padding: 1.2rem 2rem;
+        padding: 1rem 2rem;
         border-radius: 0 0 20px 20px;
         margin-bottom: 1.5rem;
         border-bottom: 4px solid #D4AF37;
