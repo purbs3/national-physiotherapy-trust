@@ -335,12 +335,12 @@ def generate_80g_receipt(donor):
 st.markdown(f"""
 <div class="main-header">
     <div style="display:flex; align-items:center; gap:20px;">
-        <div style="background:white; width:150px; height:130px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); overflow:hidden;">
+        <div style="background:white; width:100px; height:120px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); overflow:hidden;">
             {logo_html}
         </div>
         <div>
             <div style=" display:flex; align-items:center; gap:12px;">
-                <h1 style ="font-size: 55px; color: #F8F6F0;">NPRC GLOBAL</h1>
+                <h1 >NPRC GLOBAL</h1>
                 <span class="badge-gold">TRUST</span>
             </div>
             <h2>National Physiotherapy & Rehabilitation Council</h2>
