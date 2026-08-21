@@ -339,8 +339,8 @@ st.markdown(f"""
             {logo_html}
         </div>
         <div>
-            <div style="font-size: 30%; display:flex; align-items:center; gap:12px;">
-                <h1>NPRC GLOBAL</h1>
+            <div style=" display:flex; align-items:center; gap:12px;">
+                <h1 style ="font-size: 30%;">NPRC GLOBAL</h1>
                 <span class="badge-gold">TRUST</span>
             </div>
             <h2>National Physiotherapy & Rehabilitation Council</h2>
