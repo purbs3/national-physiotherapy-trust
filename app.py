@@ -127,7 +127,7 @@ st.markdown(f"""
         margin-bottom: 1.5rem;
         border-bottom: 4px solid #D4AF37;
         display: flex;
-        align-items: center;
+        align-items: top;
         justify-content: space-between;
         flex-wrap: wrap; /* जगह कम होने पर नीचे खिसकाएं */
         gap: 5px;
