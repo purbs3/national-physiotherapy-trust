@@ -160,6 +160,7 @@ st.markdown(f"""
     /* ========================================= */
     @media screen and (max-width: 768px) {{
         .main-header {{
+        font-size: 30%;
             padding: 1rem;
             flex-direction: column; /* मोबाइल पर ऊपर-नीचे सेट करें */
             align-items: flex-start;
